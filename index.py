@@ -34,7 +34,7 @@ print(metadata_org['encoding'])
 print(metadata_org['maxBatchSize'])
 print(metadata_org['sobjects'])
 
-# write properties of sf metadata to csv
+#  write properties of sf metadata to csv
 df_sobjects = pd.DataFrame(metadata_org['sobjects'])
 df_sobjects.to_csv('org metadata info.csv', index = False)
 
