@@ -1,46 +1,84 @@
-from simple_salesforce import Salesforce, SalesforceLogin
+import os
 import pandas as pd
-
+from simple_salesforce import Salesforce, SalesforceLogin
 import configparser
-config = configparser.ConfigParser()
-config.read('.env')
 
-['SfLoginInfo']
-username = config['SfLoginInfo']['username']
-password = config['SfLoginInfo']['password']
-security_token = config['SfLoginInfo']['security_token']
-domain = 'login'
+def establish_salesforce_connection():
+    """
+    Establishes connection to Salesforce using credentials from .env file.
+    Returns Salesforce instance.
+    """
+    config = configparser.ConfigParser()
+    config.read('.env')
 
-#Establish the salesforce connection string
-session_id, instance = SalesforceLogin(username = username, password=password, security_token=security_token, domain= domain)
+    username = config['SfLoginInfo']['username']
+    password = config['SfLoginInfo']['password']
+    security_token = config['SfLoginInfo']['security_token']
+    domain = 'login'
 
-#create a Salesforce instance
-sf = Salesforce(instance= instance, session_id= session_id)
-print(sf)
+    session_id, instance = SalesforceLogin(username=username, password=password, security_token=security_token, domain=domain)
+    sf_instance = Salesforce(instance=instance, session_id=session_id)
 
+    return sf_instance
 
-#Explore the attributes of the sf instance
-for element in dir(sf):
-    if not element.startswith('_'):
-        if isinstance(getattr(sf, element), str):
-            print('Property Name: {0}; Value: {1}'.format(element, getattr(sf,element)))
+def explore_salesforce_attributes(sf_instance):
+    """
+    Prints out non-private attributes of the Salesforce instance.
+    """
+    print("Exploring Salesforce instance attributes:")
+    for element in dir(sf_instance):
+        if not element.startswith('_'):
+            if isinstance(getattr(sf_instance, element), str):
+                print('Property Name: {0}; Value: {1}'.format(element, getattr(sf_instance, element)))
 
+def get_salesforce_metadata(sf_instance):
+    """
+    Retrieves and returns metadata information from Salesforce.
+    """
+    print("Retrieving Salesforce metadata information...")
+    return sf_instance.describe()
 
-#Get the properties of SF metadata
-metadata_org = sf.describe()
-print(type(metadata_org))
-print(metadata_org.keys())
-print(metadata_org['encoding'])
-print(metadata_org['maxBatchSize'])
-print(metadata_org['sobjects'])
+def write_to_csv(dataframe, filename):
+    """
+    Writes DataFrame to a CSV file.
+    """
+    dataframe.to_csv(filename, index=False)
+    print("Data written to", filename)
 
-#  write properties of sf metadata to csv
-df_sobjects = pd.DataFrame(metadata_org['sobjects'])
-df_sobjects.to_csv('org metadata info.csv', index = False)
+if __name__ == '__main__':
+    # Establish Salesforce connection
+    try:
+        sf_instance = establish_salesforce_connection()
+        print("Salesforce connection established successfully.")
+    except Exception as e:
+        print("Failed to establish Salesforce connection:", str(e))
+        exit()
 
-# write properties of sf account info to csv
-account = sf.account
-account_metadata = account.describe()
-print(type(account_metadata))
-df_account_metadata = pd.DataFrame(account_metadata.get('fields'))
-df_account_metadata.to_csv('account object metadata')
+    # Explore Salesforce instance attributes
+    explore_salesforce_attributes(sf_instance)
+
+    # Get Salesforce metadata
+    try:
+        metadata_org = get_salesforce_metadata(sf_instance)
+        print("Metadata retrieved successfully.")
+    except Exception as e:
+        print("Failed to retrieve Salesforce metadata:", str(e))
+        exit()
+
+    # Write Salesforce metadata to CSV
+    try:
+        df_sobjects = pd.DataFrame(metadata_org['sobjects'])
+        write_to_csv(df_sobjects, 'org_metadata_info.csv')
+    except Exception as e:
+        print("Failed to write metadata to CSV:", str(e))
+        exit()
+
+    # Write Salesforce account metadata to CSV
+    try:
+        account = sf_instance.account
+        account_metadata = account.describe()
+        df_account_metadata = pd.DataFrame(account_metadata.get('fields'))
+        write_to_csv(df_account_metadata, 'account_object_metadata.csv')
+    except Exception as e:
+        print("Failed to write account metadata to CSV:", str(e))
+        exit()
